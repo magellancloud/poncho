@@ -1,10 +1,18 @@
 #!/usr/bin/env python
+"""poncho : lightweight tools for full clouds
+
+You must source an OpenStack .novarc file before these commands
+will work. The following environment variables must be defined:
+OS_USERNAME, OS_PASSWORD, OS_AUTH_URL, OS_TENANT_NAME.
+
+"""
 import argparse
 from novaclient.v1_1 import client
 import os
 import sys
+
 from poncho.annotations import default as grammar
-from poncho.annotatiosn import AnnotationSyntaxError
+from poncho.annotations import AnnotationSyntaxError
 
 
 def do_add(nova, args):
@@ -40,36 +48,59 @@ def do_show(nova, args):
     print server.metadata
 
 
+def do_annotation_help(nova, args):
+    keys = grammar.list_keys()
+    if args.key and args.key in keys:
+        s = "Documentation for annotation using key '%s':\n" % args.key
+        print s + grammar.explain_values(args.key)
+    else:
+        print "Keys: \n" + "\n".join(keys)
+
+
 def get_nova_client():
-    env = os.environ
-    username = env['OS_USERNAME']
-    password = env['OS_PASSWORD']
-    auth_url = env['OS_AUTH_URL']
-    tenant = env['OS_TENANT_NAME']
-    return client.Client(
-        username, password, tenant, auth_url, service_type="compute",
-        endpoint_type="publicURL", insecure=True)
+    try:
+        username = os.environ['OS_USERNAME']
+        password = os.environ['OS_PASSWORD']
+        auth_url = os.environ['OS_AUTH_URL']
+        tenant = os.environ['OS_TENANT_NAME']
+        c = client.Client(
+            username, password, tenant, auth_url, service_type="compute",
+            endpoint_type="publicURL", insecure=True)
+        return c
+    except KeyError, e:
+        print >>sys.stderr, (
+            "Environment variable %s not defined!\n" 
+            "Have you sourced your OpenStack .novarc file?\n"
+            % (e))
+        sys.exit(1)
 
 
 def get_argparse():
-    desc = __file__.__doc__ or ''
+    desc = __doc__ or ''
     parser = argparse.ArgumentParser(
         description=desc.strip(),
-        epilog='See magellan-annotations help COMMAND'
-               'for help on a specific command.',
+        epilog='See poncho "annotation-help" for docs on valid annotations'
     )
-    subparsers = parser.add_subparsers(metavar='<subcommand>')
+    subparsers = parser.add_subparsers(
+        title='Commands')
+
     # Add parser
-    add_parser = subparsers.add_parser("add")
+    add_parser = subparsers.add_parser(
+        "add", help="Annotate instance(s) with metadata")
     add_parser.add_argument(
-        'key=value',
+        '--key', required=True,
         help='Annotation to add to instances')
+    add_parser.add_argument(
+        '--value', required=True,
+        help="Annotation value. See 'annotation-help' for documentation")
     add_parser.add_argument(
         'ids', nargs='+',
         help='instance UUIDs to annotate')
     add_parser.set_defaults(callback=do_add)
+
     # Remove parser
-    remove_parser = subparsers.add_parser('remove')
+    remove_parser = subparsers.add_parser(
+        'remove', help="Remove annotation from instance(s)")
     remove_parser.add_argument(
         'key',
         help='Annotation to remove from instances')
@@ -77,10 +108,19 @@ def get_argparse():
         'ids', nargs='+',
         help='instance UUIDs to annotate')
     remove_parser.set_defaults(callback=do_remove)
+
     # Show parser
-    show_parser = subparsers.add_parser('show')
+    show_parser = subparsers.add_parser(
+        'show', help="Show annotations set on instance")
     show_parser.add_argument('id', help='instance UUID')
     show_parser.set_defaults(callback=do_show)
+
+    # Help parser
+    help_parser = subparsers.add_parser(
+        'annotation-help', help="Documentation for instance annotations")
+    help_parser.add_argument(
+        'key', nargs='?', help="Get usage documentation for a specific key")
+    help_parser.set_defaults(callback=do_annotation_help)
     return parser
 
 
@@ -88,9 +128,14 @@ def main():
     try:
         nova = get_nova_client()
         parser = get_argparse()
+        if len(sys.argv) < 2:
+            parser.print_help()
+            sys.exit()
         args = parser.parse_args()
-        callback = args.callback
-        callback(nova, args)
+        if args.callback:
+            args.callback(nova, args)
+        else:
+            parser.print_help()
     except Exception as e:
         print >>sys.stderr, "ERROR: %s" % unicode(e)
         sys.exit(1)
