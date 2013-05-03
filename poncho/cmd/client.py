@@ -1,11 +1,5 @@
 #!/usr/bin/env python
-"""poncho : lightweight tools for full clouds
-
-You must source an OpenStack .novarc file before these commands
-will work. The following environment variables must be defined:
-OS_USERNAME, OS_PASSWORD, OS_AUTH_URL, OS_TENANT_NAME.
-
-"""
+"poncho : lightweight tools for full clouds"
 import argparse
 from novaclient.v1_1 import client
 import os
@@ -78,7 +72,7 @@ def get_nova_client():
 def get_argparse():
     desc = __doc__ or ''
     parser = argparse.ArgumentParser(
-        description=desc.strip(),
+        description=desc,
         epilog='See poncho "annotation-help" for docs on valid annotations'
     )
     subparsers = parser.add_subparsers(
