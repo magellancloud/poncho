@@ -10,19 +10,20 @@ from poncho.annotations import AnnotationSyntaxError
 
 
 def do_add(nova, args):
-    (key, value) = args.__dict__['key=value'].split('=')
+    key = args.key
+    value = args.value
     # Attempt to validate the key-value pair before adding it
     try:
-        annotations.validate(key, value)
-    except poncho.annotations.AnnotationSyntaxError as e:
+        grammar.validate(key, value)
+    except AnnotationSyntaxError as e:
         print >>sys.stderr, e
         sys.exit(1)
     for server_id in args.ids:
         server = nova.servers.get(server_id)
         if server:
             body = {'meta': {key: value}}
-            nova.servers._create("/servers/%s/metadata/%s" %
-                                 (server_id, key), body, "meta")
+            nova.servers._update("/servers/%s/metadata/%s" %
+                                 (server_id, key), body, response_key="meta")
         else:
             print >>sys.stderr, "Server %s not found, skipping!" % (server_id)
 
@@ -131,7 +132,7 @@ def main():
         else:
             parser.print_help()
     except Exception as e:
-        print >>sys.stderr, "ERROR: %s" % unicode(e)
+        print >>sys.stderr, "ERROR: %s" % e
         sys.exit(1)
 
 if __name__ == '__main__':
