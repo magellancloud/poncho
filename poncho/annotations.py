@@ -74,13 +74,21 @@ class Constraint(object):
 
 
 class RuntimeConstraint(Constraint):
-    """ 'Runtime(2h12s)' where valid durations are like 0d1h2m3s """
+    """ 'Runtime(2h12s)' where valid durations are like 0d1h2m3s
+    This condition returns true when the instance has been running
+    for more than the supplied duraiton.
+"""
     def __init__(self, arg_string):
         timedelta = self._parse_time(arg_string)
 
 
 class NotifiedConstraint(Constraint):
-    """ 'Notified(10m)' where valid durations are like 1d2h3m4s """
+    """ 'Notified(10m)' where valid durations are like 1d2h3m4s
+    This indicates that a scheduled-action notification should be
+    sent to the notify-url. The constraint returns true when the
+    time since the notification was sent is more than the supplied
+    duration.
+"""
     def __init__(self, arg_string):
         timedelta = self._parse_time(arg_string)
 
