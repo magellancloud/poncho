@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 import argparse
-
-def arg(*args, **kwargs):
-    def _decorator(func):
-        _add_arg(func, *args, **kwargs)
-        return func
-    return _decorator
+import os
+import re
+import subprocess
+import tempfile
 
 def _add_arg(f, *args, **kwargs):
     """Bind CLI arguments to a shell.py `do_foo` function."""
@@ -13,32 +11,33 @@ def _add_arg(f, *args, **kwargs):
         f.arguments = []
     if (args, kwargs) not in f.arguments:
         f.arguments.insert(0, (args, kwargs))
+ 
+def arg(*args, **kwargs):
+    """Decorator for CLI arguments."""
+    def _decorator(func):
+        _add_arg(func, *args, **kwargs)
+        return func
+    return _decorator
+
 
 class Shell(object):
-    subcommands = {}
-    epilog = ''
+
     def get_base_parser(self):
         desc = self.__doc__ or ''
-        parser = argparse.ArgumentParser(
-            description=desc.strip(),
-            epilog=self.epilog or ''
-        )
-        self.parser = parser
+        parser = argparse.ArgumentParser(description=desc.strip())
         return parser
 
     def get_subcommand_parser(self):
         parser = self.get_base_parser()
-        subcommands = self.subcommands
+        self.subcommands = {}
         subparsers = parser.add_subparsers(metavar='<subcommand>')
-        self._find_actions(subparsers, self.__class__)
-        for command_name, command_class in subcommands.iteritems():
-            self._find_actions(subparsers, command_class)
+        self._find_actions(subparsers)
         return parser
 
-    def _find_actions(self, subparsers, actions_class):
-        for attr in (a for a in dir(actions_class) if a.startswith('do_')):
+    def _find_actions(self, subparsers):
+        for attr in (a for a in dir(self.__class__) if a.startswith('do_')):
             command = attr[3:].replace('_', '-')
-            callback = getattr(actions_class, attr)
+            callback = getattr(self.__class__, attr)
             desc = callback.__doc__ or ''
             action_help = desc.strip().split('\n')[0]
             arguments = getattr(callback, 'arguments', [])
@@ -55,23 +54,28 @@ class Shell(object):
             for (args, kwargs) in arguments:
                 subparser.add_argument(*args, **kwargs)
             subparser.set_defaults(func=callback)
-    def do_help(self, args):
-        if args.command:
-            if args.command in self.subcommands:
-                self.subcommands[args.command].print_help()
-        else:
-            self.parser.print_help()
 
-    def get_ctx(self):
-        return {}
     def main(self, argv):
         parser = self.get_subcommand_parser()
-        args = parser.parse_args(argv) 
-        ctx = self.get_ctx()
-        if options.help or not argv:
-            parser.print_help()
-            return 0
-        if args.func == self.do_help:
-            self.do_help(args)
-            return 0
-        args.command(self, args, ctx)
+        args = parser.parse_args(argv)
+        args.func(self, args)
+
+def get_text_from_editor(template):
+    """Enter an editor to gather text. Strip out comment lines."""
+    def which(cmd):
+        return subprocess.check_output(
+            ' '.join(['which', cmd]), shell=True).rstrip()
+    editor = os.environ.get('EDITOR', which('vi'))
+    with tempfile.NamedTemporaryFile(delete=False) as fh:
+        fh.write(template)
+        filename = fh.name
+    os.system(" ".join([editor, filename]))
+    text = []
+    comment = re.compile("^#")
+    with open(filename, 'r') as fh:
+        for line in fh.readline():
+            if not comment.match(line):
+                text.append(line)
+    os.unlink(filename)
+    return "\n".join(text) 
+
