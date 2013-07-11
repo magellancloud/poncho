@@ -1,0 +1,9 @@
+Big projects:
+- Implement sqlalchemy migration repo for db
+- Implement workflow-specific data models,
+    refactor many classes to gather options from workflows
+- Better integration of annotation grammar in service code.
+
+# Also check:
+# $ grep -r "TODO" .
+

@@ -17,6 +17,7 @@ import smtplib
 import string
 import sys
 
+# TODO(scott): Make notification types configurable
 notify_group = cfg.OptGroup(name='notify', title='Notification options')
 notify_group_options = [
     cfg.BoolOpt(

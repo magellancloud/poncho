@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import os
+import prettytable
 import re
 import subprocess
 import tempfile
@@ -19,6 +20,19 @@ def arg(*args, **kwargs):
         return func
     return _decorator
 
+def print_table(objs, columns=[], formatters={}):
+    table = prettytable.PrettyTable(columns)
+    table.aligns = [ 'l' for c in columns ]
+    for obj in objs:
+        row = []
+        for column in columns:
+            if column in formatters:
+                row.append(formatters[column](obj))
+            else:
+                field = column.lower().replace(' ', '_')
+                row.append(getattr(obj, field, ''))
+        table.add_row(row)
+    print table.get_string(sortby=columns[0])
 
 class Shell(object):
 
