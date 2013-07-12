@@ -53,7 +53,7 @@ initalized -> notify -> active_drain -> drained -> restarting -> completed
     name = "restart-instances"
     pass
 
-class DeleteInstances(RestartInstances):
+class DeleteInstances(Workflow):
     """ Workflow for deleting instances on hosts.
 
 initalized -> passive_drain -> active_drain -+
@@ -124,9 +124,15 @@ def _enabled_workflows():
         parts = path.split('.')
         module = ".".join(parts[:len(parts)-1])
         cls = parts[len(parts)-1]
-        module = importlib.import_module(module)
-        workflow = getattr(module, cls)
-        workflows[workflow.name] = workflow
+        try:
+            module = importlib.import_module(module)
+            workflow = getattr(module, cls)
+            workflows[workflow.name] = workflow
+        # TODO(scott): want to log failed workflow imports
+        except ImportError, e:
+            pass
+        except KeyError, e:
+            pass
     return workflows
 
 _ENABLED_WORKFLOWS = _enabled_workflows()
