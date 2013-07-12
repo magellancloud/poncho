@@ -27,29 +27,35 @@ class ServiceShell(cli.Shell):
                           'Active Drain' : 'begin_active_drain_at'}
 
         def _format_time(dt):
+            "Helpful time format: 'ISO-Timestamp (10 mins, 1 sec ago)'"
             if dt is None:
                 return ""
-            dt.replace(microsecond=0)
+            dt = dt.replace(microsecond=0)
             now = datetime.now().replace(microsecond=0)
             low = min(dt, now)
             hi  = max(dt, now)
             delta = hi - low
-            relative_levels = [ 
+            relative_times = [ 
                 ('year', delta.days // 365),
                 ('month', delta.days // 30),
                 ('week', delta.days // 7),
                 ('day', delta.days),
                 ('hour', delta.seconds // 60 // 60 % 24),
-                ('minute', delta.seconds // 60 % 60),
-                ('second', delta.seconds % 60),
+                ('min', delta.seconds // 60 % 60),
+                ('sec', delta.seconds % 60),
             ]
             modifier = "from now"
             if dt < now:
                 modifier = "ago"
-            for name,ammount in relative_levels:
+            two_sizes = []
+            for name,ammount in relative_times:
+                if len(two_sizes) == 2:
+                    break
                 if ammount > 0:
                     name += "s" if ammount != 1 else ""
-                    return "%s (%s %s %s)" % (dt, ammount, name, modifier)
+                    two_sizes.append("%s %s" % (ammount, name))
+            if len(two_sizes):
+                return "%s (%s %s)" % (dt, ", ".join(two_sizes), modifier)
             return "%s (right now)" % (dt) 
 
         formatters = {
@@ -143,13 +149,13 @@ class ServiceShell(cli.Shell):
         # TODO(scott): implement notifications
         self._event_complete(args.service_id, 'canceled')
 
-    def do_list_workflows(self, args):
+    def do_workflow_list(self, args):
         """List available workflows."""
         for workflow in poncho.workflows.get_workflows():
                 print workflow.name
 
     @cli.arg('workflow_name', help='Name of a workflow to show.')
-    def do_show_workflow(self, args):
+    def do_workflow_show(self, args):
         """Show information about a workflow."""
         workflow = poncho.workflows.get_workflow(args.workflow_name)
         desc = workflow.__doc__ or 'No description provided. :('
