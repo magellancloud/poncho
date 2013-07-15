@@ -36,7 +36,7 @@ class Workflow(object):
         return getattr(self.__class__, "state_" + state_name)
 
     def run(self, thing, context):
-        state_name = thing.state()
+        state_name = thing.state
         state_fn = self._get_state_fn(state)
         if state_fn:
             return self.state_fn(thing, context)

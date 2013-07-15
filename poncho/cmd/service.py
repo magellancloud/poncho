@@ -162,7 +162,9 @@ class ServiceShell(cli.Shell):
         print ("Workflow: %s\n%s\nDescription:\n%s%s\n" %
             (workflow.name, ('=' * 79), desc, ('=' * 79)))
 
-
-if __name__ == '__main__':
+def main():
     shell = ServiceShell()
     shell.main(sys.argv[1:])
+
+if __name__ == '__main__':
+    main()

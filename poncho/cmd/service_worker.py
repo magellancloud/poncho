@@ -26,15 +26,21 @@ def main_loop(context):
         events = db.get_events()
         for event in events:
             event = db.get_event_for_update(event.id, session)
+            print "Event %d state: %s..." % (event.id, event.state)
             try:
                 workflow_name = event.workflow
                 workflow = poncho.workflows.get_workflow(workflow_name)
-                newstate = workflow(event, context).run()
+                newstate = workflow().run(event, {})
                 if newstate:
-                    event.state(newstate)
-            except Exception, e:
-                # TODO(scott): implement logging
-                pass
+                    print "Event %d state: %s -> %s" % (event.id, event.state, newstate)
+                    event.state = newstate
+                else:
+                    print "Event %d state: %s -X" % (event.id, event.state)
+
+            #except Exception, e:
+            #    print "Event %d, exception: %s" % (event.id, e)
+            #    # TODO(scott): implement logging
+            #    pass
             finally:
                 session.commit()
         time.sleep(CONF.polling_interval)
