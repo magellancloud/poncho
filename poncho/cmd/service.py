@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""service-host : schedule and execute service operationson hosts
-running nova-compute
+"""poncho-service : schedule and execute service operations on hosts
+                    running nova-compute
 """
 from datetime import datetime, timedelta
 import os
@@ -11,7 +11,9 @@ import tempfile
 
 import poncho.workflows
 from poncho.common import cli
+from poncho.common.utils import readable_datetime
 from poncho.db import api as db
+
 class ServiceShell(cli.Shell):
     "service-host : schedule and execute service operations"
 
@@ -25,44 +27,13 @@ class ServiceShell(cli.Shell):
             'Completed', 'Completed At' ]
         column_renames = {'Passive Drain' : 'begin_passive_drain_at',
                           'Active Drain' : 'begin_active_drain_at'}
-
-        def _format_time(dt):
-            "Helpful time format: 'ISO-Timestamp (10 mins, 1 sec ago)'"
-            if dt is None:
-                return ""
-            dt = dt.replace(microsecond=0)
-            now = datetime.now().replace(microsecond=0)
-            low = min(dt, now)
-            hi  = max(dt, now)
-            delta = hi - low
-            relative_times = [ 
-                ('year', delta.days // 365),
-                ('month', delta.days // 30),
-                ('week', delta.days // 7),
-                ('day', delta.days),
-                ('hour', delta.seconds // 60 // 60 % 24),
-                ('min', delta.seconds // 60 % 60),
-                ('sec', delta.seconds % 60),
-            ]
-            modifier = "from now"
-            if dt < now:
-                modifier = "ago"
-            two_sizes = []
-            for name,ammount in relative_times:
-                if len(two_sizes) == 2:
-                    break
-                if ammount > 0:
-                    name += "s" if ammount != 1 else ""
-                    two_sizes.append("%s %s" % (ammount, name))
-            if len(two_sizes):
-                return "%s (%s %s)" % (dt, ", ".join(two_sizes), modifier)
-            return "%s (right now)" % (dt) 
-
         formatters = {
-            'Created At': lambda e: _format_time(e.created_at),
-            'Passive Drain': lambda e: _format_time(e.begin_passive_drain_at),
-            'Active Drain': lambda e: _format_time(e.begin_active_drain_at),
-            'Completed At': lambda e: _format_time(e.completed_at),
+            'Created At': lambda e: readable_datetime(e.created_at),
+            'Passive Drain': lambda e: readable_datetime(
+                                        e.begin_passive_drain_at),
+            'Active Drain': lambda e: readable_datetime(
+                                        e.begin_active_drain_at),
+            'Completed At': lambda e: readable_datetime(e.completed_at),
             #'Hosts' : lambda e: " ".join([_host_status(h) for h in e.hosts ]),
             #'Instances' : _format_instances,
         }
