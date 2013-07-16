@@ -1,8 +1,7 @@
 anyjson>=0.3.3
 argparse
 alembic>=0.5
-oslo.config>=1.2.0a3
+oslo.config>=1.1.1
 python-keystoneclient>=0.2,<0.3
 python-novaclient>=2.6.10
 SQLAlchemy>=0.7,<=0.7.99
-
