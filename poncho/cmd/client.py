@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 "poncho : lightweight tools for full clouds"
 import argparse
-from novaclient.v1_1 import client
+import json
 import os
 import sys
+
+from novaclient.v1_1 import client
 
 from poncho.annotations import default as grammar
 from poncho.annotations import AnnotationSyntaxError
@@ -40,7 +42,7 @@ def do_remove(nova, args):
 
 def do_show(nova, args):
     server = nova.servers.get(args.id)
-    print server.metadata
+    print json.dumps(server.metadata, sort_keys=True, indent=2)
 
 
 def do_annotation_help(nova, args):
@@ -57,7 +59,9 @@ def get_nova_client():
         username = os.environ['OS_USERNAME']
         password = os.environ['OS_PASSWORD']
         auth_url = os.environ['OS_AUTH_URL']
-        tenant = os.environ['OS_TENANT_NAME']
+        tenant = os.environ.get('OS_TENANT_NAME')
+        if not tenant:
+            tenant = os.environ['OS_AUTH_TENANT']
         c = client.Client(
             username, password, tenant, auth_url, service_type="compute",
             endpoint_type="publicURL", insecure=True)
@@ -121,11 +125,11 @@ def get_argparse():
 
 def main():
     try:
-        nova = get_nova_client()
         parser = get_argparse()
         if len(sys.argv) < 2:
             parser.print_help()
             sys.exit()
+        nova = get_nova_client()
         args = parser.parse_args()
         if args.callback:
             args.callback(nova, args)
