@@ -202,7 +202,7 @@ class ConstraintSet(Validator):
     the following form:
 
     """
-    constraint_regex = re.compile("(\w+)\((\w*)\)")
+    constraint_regex = re.compile("(\w+)\(([^;\)]*)\)")
     constraint_delimiter = ";"
 
     def __init__(self, constraints):
