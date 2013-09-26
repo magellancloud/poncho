@@ -3,6 +3,7 @@
 # instance annotations.
 import datetime
 import re
+import time
 import urlparse
 
 
@@ -99,6 +100,65 @@ class NotifiedConstraint(Constraint):
         timedelta = self._parse_time(arg_string)
 
 
+# TimeOfDay helper functions
+
+_time_of_day_regex = re.compile("(?P<start>\d{2}:\d{2}),\s*"
+                                "(?P<stop>\d{2}:\d{2})"
+                                "(,\s*(?P<tz>[+-]\d{2}:\d{2})){0,1}")
+def _parse_time_of_day(string):
+    """Returns a 3 tuple (start, stop, tz). Start and stop are datetime.time's
+    and tz is a timedelta object."""
+    syntax = "Syntax is 't, t[, tz]'. t: 'HH:MM', tz: '+/-HH:MM'."
+    match = _time_of_day_regex.match(string)
+    if not match:
+        raise ConstraintSyntaxError(string, syntax)
+    if not match.group('start') or not match.group('stop'):
+        raise ConstraintSyntaxError(string, "Must have start and stop times.")
+    def to_time(string):
+        t = time.strptime(string, "%H:%M")
+        return datetime.time(t.tm_hour, t.tm_min)
+    def to_timedelta(tz):
+        m = re.match("([+-])(\d{2}):(\d{2})", tz)
+        if len(m.groups()) != 3:
+            raise ConstraintSyntaxError(string, "UTC offset is invalid.")
+        (sign, h, m) = m.groups()
+        mult = 1 if sign == "+" else -1
+        return datetime.timedelta(hours=(mult*int(h)), minutes=(mult*int(m)))
+    try:
+        start = to_time(match.group('start'))
+        stop  = to_time(match.group('stop'))
+        tz = to_timedelta(match.group('tz') or '+00:00')
+    except:
+        raise ConstraintSyntaxError(string, syntax)
+    if abs(tz) > datetime.timedelta(days=1):
+        raise ConstraintSyntaxError(string,
+            "UTC offset must be less than one day.")
+    return (start, stop, tz)
+
+
+class TimeOfDayConstraint(Constraint):
+    """ 'TimeOfDay(start, stop [, tz])' where start and stop are
+    time strings of the form 'hh:mm' and tz is an optional time
+    zone string of the form '+07:30' or '-6:00'. The constraint
+    returns true when the time of day is between start and stop
+    for the supplied time zone or UTC time.
+"""
+    def __init__(self, arg_string):
+        (start, stop, tz) = _parse_time_of_day(arg_string)
+        self.start = start
+        self.stop = stop
+        self.tz   = tz
+
+    def is_valid(self, context):
+        now = datetime.datetime.utcnow() + self.tz
+        wraps = True if self.start > self.stop else False
+        # Account for case where start and stop wrap around midnight
+        if not wraps and self.start < now and now < self.stop:
+            return True
+        elif wraps and (self.start < now or now < self.stop):
+            return True
+        return False
+
 def is_url(string):
     try:
         parts = urlparse.urlparse(string)
@@ -177,8 +237,12 @@ class ConstraintSet(Validator):
             docs.append(c.__doc__)
         return "\n".join(docs)
 
-_constraints = ConstraintSet(
-    {'Runtime': RuntimeConstraint, 'Notified': NotifiedConstraint})
+_constraints = ConstraintSet({
+    'Runtime': RuntimeConstraint, # depreciated
+    'MinRuntime' : RuntimeConstraint,
+    'Notified': NotifiedConstraint,
+    'TimeOfDay' : TimeOfDayConstraint,
+     })
 
 default = Grammar({
     'reboot_when': _constraints,
