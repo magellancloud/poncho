@@ -1,1 +1,10 @@
 *.pyc
+*.log
+*.swp
+.venv
+.coverage
+cover/*
+coverage.xml
+dist
+*.egg
+*.egg-info

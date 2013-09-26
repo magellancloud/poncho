@@ -19,7 +19,6 @@ setup(
     entry_points={
         'console_scripts' : [
               'poncho = poncho.cmd.client:main',
-              'poncho-admin = poncho.cmd.admin:main',
               'poncho-service = poncho.cmd.service:main',
               'poncho-daemon = poncho.cmd.service_worker:main',
         ],
