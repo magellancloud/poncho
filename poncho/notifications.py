@@ -17,9 +17,31 @@ import smtplib
 import string
 import sys
 
-# TODO(scott): Make notification types configurable
+DEFAULT_NOTIFICATIONS = [
+    'poncho.notifications.RebootScheduled',
+    'poncho.notifications.Rebooting',
+    'poncho.notifications.TerminateScheduled',
+    'poncho.notifications.Terminating',
+    'poncho.notifications.SnapshotCreated',
+    'poncho.notifications.HaGroupDegraded',
+    'poncho.notifications.HaGroupHealthy',
+    'poncho.notifications.ShedLoadRequest',
+]
+
 notify_group = cfg.OptGroup(name='notify', title='Notification options')
 notify_group_options = [
+    cfg.StrOpt(
+        'enabled_notifications', default=DEFAULT_NOTIFICATIONS,
+        help="Types of notifications sent out."),
+    cfg.StrOpt(
+        'default_notification_delay', default='1h',
+        help='For scheduled notifications, e.g. "reboot-scheduled", this is '
+        'the default ammount of time after being notified that the reboot can '
+        'take place.'),
+    cfg.StrOpt(
+        'maximum_notification_delay', default='24h',
+        help='For scheduled notifications, e.g. "reboot-scheduled", this is '
+        'the maximum time that the system will delay the event for.'),
     cfg.BoolOpt(
         'enable_notifications_by_mail', default=True,
         help="If no notify_url is supplied, send notifications by email."),
@@ -30,8 +52,11 @@ notify_group_options = [
         'email_notifications_reply_to',
         help="Reply_To header."),
     cfg.StrOpt(
+        'email_notifications_subject', default='OpenStack Notification',
+        help="Subject for notification email messages."),
+    cfg.StrOpt(
         'email_notifications_smtp_server',
-        help='SMTP server to use when sending notification emails')
+        help='SMTP server to use when sending notification emails'),
 ]
 
 CONF = cfg.CONF
@@ -50,7 +75,7 @@ def email_body(notification):
     Please direct any questions to %s.
     """ % (notification, notification.description, reply)
 
-def send_email(to_addrs=[], subject="", body="", files=[]):
+def _send_email(to_addrs=[], subject="", body="", files=[]):
     assert type(to_addrs)==list
     assert type(files)==list
     from_addr = CONF.email_notifications_from_addr
@@ -96,7 +121,7 @@ class Notification(object):
     def __init__(self, **kwargs):
         for key in self.required_keys:
             if key not in kwargs:
-                raise InvalidNotification()
+                raise InvalidNotification("kwarg %s required" % key)
             else:
                 setattr(self, key, kwargs[key])
 
@@ -132,7 +157,7 @@ class Notification(object):
             body = email_body(self)
             from_addr=CONF.email_notifications_from
             # TODO(scott): reasonable subject fields
-            send_email(to_addrs=emails, subject="Subject", body=body)
+            _send_email(to_addrs=emails, subject="Subject", body=body)
     
 
 class InstanceNotification(Notification):

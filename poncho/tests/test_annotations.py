@@ -1,6 +1,6 @@
 from nose.tools import *
 import datetime
-import poncho.annotations as pa
+from poncho import annotations as pa
 
 
 

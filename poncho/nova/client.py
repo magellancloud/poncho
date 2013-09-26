@@ -5,17 +5,9 @@ Wrapper for novaclient object construction
 
 from oslo.config import cfg
 
-from novaclient.v1_1 import client as nova_client
+import os
 
-cfg.CONF.register_opts([
-    cfg.StrOpt('host',
-               default=socket.gethostname(),
-               help='Name of this node.  This can be an opaque identifier.  '
-               'It is not necessarily a hostname, FQDN, or IP address. '
-               'However, the node name must be valid within '
-               'an AMQP key, and if using ZeroMQ, a valid '
-               'hostname, FQDN, or IP address'),
-])
+from novaclient.v1_1 import client as nova_client
 
 OPTIONS = [
     cfg.StrOpt('os-username',
@@ -44,6 +36,10 @@ OPTIONS = [
                default=os.environ.get('OS_ENDPOINT_TYPE', 'publicURL'),
                help='Type of endpoint in Identity service catalog to use for '
                     'communication with OpenStack services.'),
+    cfg.StrOpt('os-all-tenants',
+               default=os.environ.get('OS_ALL_TENANTS', 1),
+               help='Query all tenants for hosts. This requires privileges in'
+               ' each tenant.'),
 ]
 cfg.CONF.register_cli_opts(OPTIONS, group="service_credentials")
 
@@ -61,3 +57,9 @@ class Client(object):
             endpoint_type=cfg.CONF.service_credentials.os_endpoint_type,
             no_cache=True)
 
+    def get_host_servers(self, hostname):
+        """Returns list of servers for hostname."""
+        all_tenants = cfg.CONF.service_credentials.all_tenants
+        return self.nova_client.servers.list(
+                search_opts={'host':hostname,
+                             'all_tenants':all_tenants})

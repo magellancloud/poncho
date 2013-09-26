@@ -87,7 +87,7 @@ def get_text_from_editor(template):
     text = []
     comment = re.compile("^#")
     with open(filename, 'r') as fh:
-        for line in fh.readline():
+        for line in fh:
             if not comment.match(line):
                 text.append(line)
     os.unlink(filename)

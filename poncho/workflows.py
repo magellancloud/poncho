@@ -2,17 +2,23 @@
 """
 Poncho service workflow definitions
 """
+
+from oslo.config import cfg
+
+from poncho.nova.manage import nova_manage
+from poncho.nova.client import Client
+
+from datetime import datetime
 import importlib
 import inspect
 import sys
-from oslo.config import cfg
 
 DEFAULT_WORKFLOWS = [
     'poncho.workflows.DeleteInstances',
     'poncho.workflows.RestartInstances',
 ]
 opts = [
-    cfg.StrOpt('enabled_workflows', default=DEFAULT_WORKFLOWS,
+    cfg.ListOpt('enabled_workflows', default=DEFAULT_WORKFLOWS,
         help="Avaliable workflows for Poncho service event operations"),
 ]
 CONF = cfg.CONF
@@ -32,14 +38,14 @@ class Workflow(object):
         return [ fn_name[6:] for fn_name in dir(self.__class__)
                 if fn_name.startswith('state_')]
 
-    def _get_state_fn(self, state):
+    def _get_state_fn(self, state_name):
         return getattr(self.__class__, "state_" + state_name)
 
     def run(self, thing, context):
         state_name = thing.state
-        state_fn = self._get_state_fn(state)
+        state_fn = self._get_state_fn(state_name)
         if state_fn:
-            return self.state_fn(thing, context)
+            return state_fn(self, thing, context)
         else:
             raise UnknownState(state_name)
 
@@ -67,36 +73,42 @@ initalized -> passive_drain -> active_drain -+
         pass
 
     def state_initialized(self, event, ctx):
-        delay_elapsed = False
-        if delay_elapsed:
+        if datetime.now() > event.begin_passive_drain_at:
             return "passive_drain"
 
     def state_passive_drain(self, event, ctx):
-        hosts = []
-        for host in hosts:
-            # disable host
-            pass
-        find_instances = []
-        for instance in find_instances:
+        instances = []
+        for host in event.hosts:
+            nova_manage.service_disable(host=host, service='nova-compute')
+            instances.append(nova_client.get_host_instances(host))
+        for instance in instances:
             have_notified = True
             if not have_notified:
-                # notify user
-                pass
-        passive_elapsed = False
-        if passive_elapsed:
+                notifications.notification(
+                    timestamp=event.begin_active_drain_at,
+                    description=event.description,
+                    type='terminate_scheduled',
+                    instance_name=instance.name,
+                    instance_uuid=instance.uuid).send()
+        if datetime.now() > event.begin_active_drain_at:
             return "active_drain"
     
     def state_active_drain(self, event, ctx):
-        find_instances = []
-        for instance in find_instances:
-            # delete_instance
-            pass
-        hosts = []
-        for host in hosts:
-            # disable host
-            pass
-        drain_complete = False
-        if drain_complete:
+        instances = []
+        for host in event.hosts:
+            instances.append(nova_client.get_host_instances(host))
+        deleting = 0
+        for instance in instances:
+            if instance.status in ['ACTIVE']:
+                deleting += 1
+            instance.delete()
+            notifications.notification(
+                timestamp=datetime.now(),
+                description=event.description,
+                type='terminating',
+                instance_name=instance.name,
+                instance_uuid=instance.uuid).send()
+        if deleting == 0:
             return "drained"
 
     def state_drained(self, event, ctx):

@@ -8,7 +8,7 @@ from oslo.config import cfg
 import subprocess
 
 OPTIONS = [
-    cfg.StrOpt('command_wrapper', default='{placeholder}'
+    cfg.StrOpt('command_wrapper', default='{placeholder}',
                help="This wrapper is for invoking the nova-manage command"),
 ]
 
@@ -21,7 +21,7 @@ class NovaManageWrapper(object):
         self.command_format = CONF.command_wrapper
 
     def _wrap_command(self, command):
-        return self.command_format.format({ 'placeholder' :command }) 
+        return self.command_format.format(placeholder=command) 
 
     def _call_wrapped(self, command):
         final = self._wrap_command(command)
@@ -46,3 +46,8 @@ class NovaManageWrapper(object):
 
     def service_disable(self, **kwargs):
         return self._alter_service('disable', **kwargs)
+
+    def service_status(self, host=None, service=None):
+        pass
+
+nova_manage = NovaManageWrapper()

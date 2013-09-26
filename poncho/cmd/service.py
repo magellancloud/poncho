@@ -10,6 +10,7 @@ import string
 import tempfile
 
 import poncho.workflows
+import poncho.manager
 from poncho.common import cli
 from poncho.common.utils import readable_datetime
 from poncho.db import api as db
@@ -18,7 +19,7 @@ class ServiceShell(cli.Shell):
     "service-host : schedule and execute service operations"
 
     def __init__(self):
-        pass
+        self.manager = poncho.manager.ServiceEventManager()
 
     def _show_event(self, event):
         # TODO(scott): show host and instance status for each service event
@@ -89,36 +90,21 @@ class ServiceShell(cli.Shell):
             args.description = cli.get_text_from_editor("# fill this in")
         if not args.notes:
             args.notes = ""
-        event = db.create_event(args) 
+        event = self.manager.create_event(args)
         self._show_event(event)
-
-    def _event_complete(event_id, final_state):
-        session = db.get_session()
-        event = db.get_event_for_update(event_id, session=session)
-        if not event:
-            print >>sys.stderr, "Unknown event '%s'" % (event_id)
-        if event.completed:
-            print >>sys.stderr, "Cancel failed: event already compelted."
-            session.rollback()
-        else:
-            event.completed = True
-            event.state = final_state 
-            event.completed_at = datetime.now().replace(microsecond=0)
-            session.commit()
-            self._show_event(event)
 
     @cli.arg('service_id', help='The id of the service to show')
     def do_complete(self, args):
         """Mark the service event as complete."""
-        self._event_complete(args.service_id, 'complete')
+        self._show_event(self.manager.complete_event(args.service_id))
 
     @cli.arg('service_id', help='The id of the service to show')
     @cli.arg('--silent', action='store_true',
         help='Do not notify users that the service event was cancelled')
     def do_cancel(self, args):
         """Cancel the service event."""
-        # TODO(scott): implement notifications
-        self._event_complete(args.service_id, 'canceled')
+        event = self.manager.cancel_event(args.service_id, silent=args.silent)
+        self._show_event(event)
 
     def do_workflow_list(self, args):
         """List available workflows."""

@@ -32,6 +32,12 @@ class Grammar(object):
     def __init__(self, tags):
         self.tags = tags
 
+    def validate_server(self, server):
+        for tag in self.tags.keys():
+            if tag in server.metadata:
+                self.validate(tag, self.metadata[tag])
+        return True
+
     def validate(self, key, value):
         if key not in self.tags:
             raise AnnotationSyntaxError(
@@ -112,9 +118,14 @@ def is_bool(string):
         return True
     return False
 
+class Validator(object):
+    # TODO(scott): make poncho.annotations.Validator an ABC?
+    def validate(self):
+        raise NotImplementedError("validate not implemented")
+    def description(self):
+        raise NotImplemetnedError("validate not implemented")
 
-class KeyValidator(object):
-
+class KeyValidator(Validator):
     def __init__(self, fn, desc):
         self.fn = fn
         self.desc = desc
@@ -126,7 +137,7 @@ class KeyValidator(object):
         return self.desc
 
 
-class ConstraintSet():
+class ConstraintSet(Validator):
     """A string consisting of semicolon delimited list of constraints of
     the following form:
 
