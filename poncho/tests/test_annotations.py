@@ -49,7 +49,7 @@ def test_each_description():
         yield check_string, grammar.explain_values(key)
 
 def test_time_calculation():
-    c = pa.RuntimeConstraint("45m")
+    c = pa.MinRuntimeConstraint("45m")
     assert datetime.timedelta(minutes=45), c._parse_time("45m")
     assert datetime.timedelta(days=1), c._parse_time("1d")
     assert_raises(pa.AnnotationSyntaxError, c._validate_timedelta, datetime.timedelta())

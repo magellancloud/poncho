@@ -29,7 +29,7 @@ class ConstraintSyntaxError(AnnotationSyntaxError):
 
 
 class Grammar(object):
-
+    "Container object for valid instance annotations."
     def __init__(self, tags):
         self.tags = tags
 
@@ -80,8 +80,8 @@ class Constraint(object):
         return True
 
 
-class RuntimeConstraint(Constraint):
-    """ 'Runtime(2h12s)' where valid durations are like 0d1h2m3s
+class MinRuntimeConstraint(Constraint):
+    """ 'MinRuntime(2h12s)' where valid durations are like 0d1h2m3s
     This condition returns true when the instance has been running
     for more than the supplied duraiton.
 """
@@ -105,6 +105,8 @@ class NotifiedConstraint(Constraint):
 _time_of_day_regex = re.compile("(?P<start>\d{2}:\d{2}),\s*"
                                 "(?P<stop>\d{2}:\d{2})"
                                 "(,\s*(?P<tz>[+-]\d{2}:\d{2})){0,1}")
+
+
 def _parse_time_of_day(string):
     """Returns a 3 tuple (start, stop, tz). Start and stop are datetime.time's
     and tz is a timedelta object."""
@@ -114,9 +116,11 @@ def _parse_time_of_day(string):
         raise ConstraintSyntaxError(string, syntax)
     if not match.group('start') or not match.group('stop'):
         raise ConstraintSyntaxError(string, "Must have start and stop times.")
+
     def to_time(string):
         t = time.strptime(string, "%H:%M")
         return datetime.time(t.tm_hour, t.tm_min)
+
     def to_timedelta(tz):
         m = re.match("([+-])(\d{2}):(\d{2})", tz)
         if len(m.groups()) != 3:
@@ -126,13 +130,13 @@ def _parse_time_of_day(string):
         return datetime.timedelta(hours=(mult*int(h)), minutes=(mult*int(m)))
     try:
         start = to_time(match.group('start'))
-        stop  = to_time(match.group('stop'))
+        stop = to_time(match.group('stop'))
         tz = to_timedelta(match.group('tz') or '+00:00')
     except:
         raise ConstraintSyntaxError(string, syntax)
     if abs(tz) > datetime.timedelta(days=1):
         raise ConstraintSyntaxError(string,
-            "UTC offset must be less than one day.")
+                                    "UTC offset must be less than one day.")
     return (start, stop, tz)
 
 
@@ -147,7 +151,7 @@ class TimeOfDayConstraint(Constraint):
         (start, stop, tz) = _parse_time_of_day(arg_string)
         self.start = start
         self.stop = stop
-        self.tz   = tz
+        self.tz = tz
 
     def is_valid(self, context):
         now = datetime.datetime.utcnow() + self.tz
@@ -158,6 +162,7 @@ class TimeOfDayConstraint(Constraint):
         elif wraps and (self.start < now or now < self.stop):
             return True
         return False
+
 
 def is_url(string):
     try:
@@ -178,14 +183,18 @@ def is_bool(string):
         return True
     return False
 
+
 class Validator(object):
     # TODO(scott): make poncho.annotations.Validator an ABC?
     def validate(self):
         raise NotImplementedError("validate not implemented")
+
     def description(self):
         raise NotImplemetnedError("validate not implemented")
 
+
 class KeyValidator(Validator):
+
     def __init__(self, fn, desc):
         self.fn = fn
         self.desc = desc
@@ -205,8 +214,15 @@ class ConstraintSet(Validator):
     constraint_regex = re.compile("(\w+)\(([^;\)]*)\)")
     constraint_delimiter = ";"
 
-    def __init__(self, constraints):
-        self.constraints = constraints
+    def __init__(self, constraints=[]):
+        self.constraints = {}
+        self.deprecated = {}
+        for constraint in constraints:
+            self.add_constraint(constraint)
+
+    def add_constraint(self, key, constraint, deprecated=False):
+        self.constraints[key] = constraint
+        self.deprecated[key] = deprecated
 
     def make_constraint(self, string):
         m = self.constraint_regex.search(string)
@@ -233,16 +249,17 @@ class ConstraintSet(Validator):
 
     def description(self):
         docs = [self.__doc__]
-        for c in self.constraints.values():
-            docs.append(c.__doc__)
+        for key,constraint in self.constraints.iteritems():
+            if self.deprecated[key]:
+                continue
+            docs.append(constraint.__doc__)
         return "\n".join(docs)
 
-_constraints = ConstraintSet({
-    'Runtime': RuntimeConstraint, # depreciated
-    'MinRuntime' : RuntimeConstraint,
-    'Notified': NotifiedConstraint,
-    'TimeOfDay' : TimeOfDayConstraint,
-     })
+_constraints = ConstraintSet()
+_constraints.add_constraint('Runtime', MinRuntimeConstraint, deprecated=True)
+_constraints.add_constraint('MinRuntime', MinRuntimeConstraint)
+_constraints.add_constraint('Notified', NotifiedConstraint)
+_constraints.add_constraint('TimeOfDay', TimeOfDayConstraint)
 
 default = Grammar({
     'reboot_when': _constraints,
